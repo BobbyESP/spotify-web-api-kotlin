@@ -8,14 +8,14 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackOutput.Target
 
 plugins {
-    kotlin("multiplatform")
+    alias(libs.plugins.kotlin.multiplatform)
     `maven-publish`
     signing
-    id("com.android.library")
-    kotlin("plugin.serialization")
-    id("com.diffplug.spotless") version "6.21.0"
-    id("com.moowork.node") version "1.3.1"
-    id("org.jetbrains.dokka") version "1.9.0"
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.spotless)
+    alias(libs.plugins.node)
+    alias(libs.plugins.dokka)
 }
 
 repositories {
@@ -23,19 +23,8 @@ repositories {
     mavenCentral()
 }
 
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.android.tools.build:gradle:") // resolved in settings.gradle.kts
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:") // resolved in settings.gradle.kts
-    }
-}
-
 // --- spotify-web-api-kotlin info ---
-val libraryVersion: String = System.getenv("SPOTIFY_API_PUBLISH_VERSION") ?: "0.0.0.SNAPSHOT"
+val libraryVersion = System.getenv("SPOTIFY_API_PUBLISH_VERSION") ?: "0.0.0.SNAPSHOT"
 
 // Publishing credentials (environment variable)
 val nexusUsername: String? = System.getenv("NEXUS_USERNAME")
@@ -44,20 +33,21 @@ val nexusPassword: String? = System.getenv("NEXUS_PASSWORD")
 group = "com.adamratzman"
 version = libraryVersion
 
-
 android {
     namespace = "com.adamratzman.spotify"
-    compileSdk = 31
+    compileSdk = 35
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
+
     packaging {
         resources.excludes.add("META-INF/*.md") // needed to prevent android compilation errors
     }
+
     defaultConfig {
         minSdk = 23
-        setCompileSdkVersion(31)
         testInstrumentationRunner = "android.support.test.runner.AndroidJUnitRunner"
     }
 
@@ -66,15 +56,19 @@ android {
             isMinifyEnabled = false
         }
     }
+
     testOptions {
-        this.unitTests.isReturnDefaultValues = true
+        unitTests.isReturnDefaultValues = true
     }
-    sourceSets["main"].setRoot("src/androidMain")
-    sourceSets["test"].setRoot("src/androidUnitTest")
+
+    sourceSets {
+        getByName("main").setRoot("src/androidMain")
+        getByName("test").setRoot("src/androidUnitTest")
+    }
 }
 
 // invoked in kotlin closure, needs to be registered before
-val dokkaJar: TaskProvider<Jar> by tasks.registering(Jar::class) {
+val dokkaJar by tasks.registering(Jar::class) {
     group = JavaBasePlugin.DOCUMENTATION_GROUP
     description = "spotify-web-api-kotlin generated documentation"
     from(tasks.dokkaHtml)
@@ -83,25 +77,27 @@ val dokkaJar: TaskProvider<Jar> by tasks.registering(Jar::class) {
 
 kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
-    compilerOptions { 
+    compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
+
     explicitApiWarning()
-    jvmToolchain(17)
+    jvmToolchain(21)
 
     androidTarget {
-        compilations.all { kotlinOptions.jvmTarget = "17" }
+        compilations.all {
+            kotlinOptions.jvmTarget = "21"
+        }
 
         mavenPublication { setupPom(artifactId) }
 
         publishLibraryVariants("debug", "release")
-
         publishLibraryVariantsGroupedByFlavor = true
     }
 
     jvm {
         compilations.all {
-            kotlinOptions.jvmTarget = "1.8"
+            kotlinOptions.jvmTarget = "21"
         }
         testRuns["test"].executionTask.configure {
             useJUnit()
@@ -157,45 +153,24 @@ kotlin {
         mavenPublication { setupPom(artifactId) }
     }
 
-    // !! unable to include currently due to korlibs not being available !!
-    /*
-    tvos {
-        binaries { framework { baseName = "spotify" } }
-
-        mavenPublication { setupPom(artifactId) }
-    }
-
-    watchos {
-        binaries { framework { baseName = "spotify" } }
-
-        mavenPublication { setupPom(artifactId) }
-    }*/
-
+    // Apply default hierarchy template for source sets
     applyDefaultHierarchyTemplate()
 
     sourceSets {
-        val kotlinxDatetimeVersion: String by project
-        val kotlinxSerializationVersion: String by project
-        val kotlinxCoroutinesVersion: String by project
-        val ktorVersion: String by project
-
-        val sparkVersion: String by project
-        val korlibsVersion: String by project
-
         commonMain {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
-                implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("com.soywiz.korlibs.krypto:krypto:$korlibsVersion")
-                implementation("com.soywiz.korlibs.korim:korim:$korlibsVersion")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDatetimeVersion")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.ktor.client.core)
+                implementation(libs.korlibs.krypto)
+                implementation(libs.korlibs.korim)
+                implementation(libs.kotlinx.datetime)
+                implementation(libs.kotlinx.coroutines.core)
             }
         }
 
         commonTest {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion")
+                implementation(libs.kotlinx.coroutines.test)
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
             }
@@ -205,14 +180,14 @@ kotlin {
             dependsOn(commonMain.get())
 
             dependencies {
-                implementation("net.sourceforge.streamsupport:android-retrofuture:1.7.3")
+                implementation(libs.android.retrofuture)
             }
         }
 
         val commonJvmLikeTest by creating {
             dependencies {
                 implementation(kotlin("test-junit"))
-                implementation("com.sparkjava:spark-core:$sparkVersion")
+                implementation(libs.spark.core)
                 runtimeOnly(kotlin("reflect"))
             }
         }
@@ -224,12 +199,8 @@ kotlin {
         jvmMain {
             dependsOn(commonJvmLikeMain)
 
-            repositories {
-                mavenCentral()
-            }
-
             dependencies {
-                implementation("io.ktor:ktor-client-cio:$ktorVersion")
+                implementation(libs.ktor.client.cio)
             }
         }
 
@@ -237,7 +208,7 @@ kotlin {
 
         jsMain {
             dependencies {
-                implementation("io.ktor:ktor-client-js:$ktorVersion")
+                implementation(libs.ktor.client.js)
                 implementation(kotlin("stdlib-js"))
             }
         }
@@ -253,19 +224,11 @@ kotlin {
         androidMain {
             dependsOn(commonJvmLikeMain)
 
-            repositories {
-                mavenCentral()
-            }
-
             dependencies {
-                val androidSpotifyAuthVersion: String by project
-                val androidCryptoVersion: String by project
-                val androidxCompatVersion: String by project
-
-                api("com.spotify.android:auth:$androidSpotifyAuthVersion")
-                implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
-                implementation("androidx.security:security-crypto:$androidCryptoVersion")
-                implementation("androidx.appcompat:appcompat:$androidxCompatVersion")
+                api(libs.android.spotify.auth)
+                implementation(libs.ktor.client.okhttp)
+                implementation(libs.android.crypto)
+                implementation(libs.androidx.appcompat)
             }
         }
 
@@ -274,12 +237,11 @@ kotlin {
         }
 
         // desktop targets
-        // as kotlin/native, they require special ktor versions
         val desktopMain by creating {
             dependsOn(commonMain.get())
 
             dependencies {
-                implementation("io.ktor:ktor-client-curl:$ktorVersion")
+                implementation(libs.ktor.client.curl)
             }
         }
 
@@ -287,22 +249,26 @@ kotlin {
         mingwMain.get().dependsOn(desktopMain)
         macosMain.get().dependsOn(desktopMain)
 
-        val desktopTest by creating { dependsOn(commonNonJvmTargetsTest) }
+        val desktopTest by creating {
+            dependsOn(commonNonJvmTargetsTest)
+        }
+
         linuxTest.get().dependsOn(desktopTest)
         mingwTest.get().dependsOn(desktopTest)
         macosTest.get().dependsOn(desktopTest)
 
         // darwin targets
-
         val nativeDarwinMain by creating {
             dependsOn(commonMain.get())
 
             dependencies {
-                implementation("io.ktor:ktor-client-ios:$ktorVersion")
+                implementation(libs.ktor.client.ios)
             }
         }
 
-        val nativeDarwinTest by creating { dependsOn(commonNonJvmTargetsTest) }
+        val nativeDarwinTest by creating {
+            dependsOn(commonNonJvmTargetsTest)
+        }
 
         iosMain.get().dependsOn(nativeDarwinMain)
         iosTest.get().dependsOn(nativeDarwinTest)
@@ -343,11 +309,10 @@ tasks {
         }
     }
 
-
-    val publishAllPublicationsToNexusRepositoryWithTests by registering(Task::class) {
-        dependsOn.add(check)
-        dependsOn.add("publishAllPublicationsToNexusRepository")
-        dependsOn.add(dokkaHtml)
+    register<Task>("publishAllPublicationsToNexusRepositoryWithTests") {
+        dependsOn(check)
+        dependsOn("publishAllPublicationsToNexusRepository")
+        dependsOn(dokkaHtml)
     }
 
     withType<Test> {
@@ -356,26 +321,29 @@ tasks {
         }
     }
 
-    val packForXcode by creating(Sync::class) {
+    register<Sync>("packForXcode") {
         group = "build"
         val mode = System.getenv("CONFIGURATION") ?: "DEBUG"
         val sdkName = System.getenv("SDK_NAME") ?: "iphonesimulator"
         val targetName = "ios" + if (sdkName.startsWith("iphoneos")) "Arm64" else "X64"
         val framework = kotlin.targets.getByName<KotlinNativeTarget>(targetName).binaries.getFramework(mode)
         inputs.property("mode", mode)
-        dependsOn(framework.linkTask)
+        dependsOn(framework.linkTaskProvider)
         val targetDir = File(layout.buildDirectory.asFile.get(), "xcode-frameworks")
         from({ framework.outputDirectory })
         into(targetDir)
     }
-    getByName("build").dependsOn(packForXcode)
+
+    named("build") {
+        dependsOn("packForXcode")
+    }
 }
 
+// Configure signing tasks to run before publishing
 val signingTasks = tasks.withType<Sign>()
 tasks.withType<AbstractPublishToMaven>().configureEach {
     dependsOn(signingTasks)
 }
-
 
 fun MavenPublication.setupPom(publicationName: String) {
     artifactId = artifactId.replace("-web", "")
@@ -400,6 +368,7 @@ fun MavenPublication.setupPom(publicationName: String) {
                 distribution.set("repo")
             }
         }
+
         developers {
             developer {
                 id.set("adamratzman")
@@ -410,9 +379,7 @@ fun MavenPublication.setupPom(publicationName: String) {
     }
 }
 
-
 // --- Publishing ---
-
 fun PublishingExtension.registerPublishing() {
     publications {
         val kotlinMultiplatform by getting(MavenPublication::class) {
@@ -445,10 +412,7 @@ val signingPassword = project.findProperty("SIGNING_PASSWORD") as? String
 
 signing {
     if (signingKey != null && signingPassword != null) {
-        useInMemoryPgpKeys(
-            project.findProperty("SIGNING_KEY") as? String,
-            project.findProperty("SIGNING_PASSWORD") as? String
-        )
+        useInMemoryPgpKeys(signingKey, signingPassword)
         sign(publishing.publications)
     }
 }
