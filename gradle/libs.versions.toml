@@ -15,9 +15,9 @@ spark = "2.9.4"
 korlibs = "4.0.10"
 
 # Android specific versions
-android-spotify-auth = "1.2.6"
+android-spotify-auth = "2.1.1"
 android-crypto = "1.1.0-alpha06"
-androidx-compat = "1.6.1"
+androidx-compat = "1.7.0"
 android-retrofuture = "1.7.4"
 
 [libraries]
