@@ -16,11 +16,11 @@ jobs:
     steps:
     - name: Check out repo
       uses: actions/checkout@v2
-    - name: Install java 11
+    - name: Install java 21
       uses: actions/setup-java@v2
       with:
         distribution: 'adopt'
-        java-version: '17'
+        java-version: '21'
     - name: Install curl
       run: sudo apt-get install -y curl libcurl4-openssl-dev
     - name: Test android
@@ -28,7 +28,7 @@ jobs:
     - name: Test jvm
       run: ./gradlew jvmTest
     - name: Archive test results
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: code-coverage-report
